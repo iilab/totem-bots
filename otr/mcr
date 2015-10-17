@@ -483,7 +483,7 @@ set otr = 1
 # OTR directory
 # You can specify the OTR directory with the otr_dir option
 # (default = ~/.mcabber/otr/).
-set otr_dir = "otr/"
+set otr_dir = "keys/"
 #
 # You can set OTR policies from the configuration file (use /help otrpolicy
 # for the details).

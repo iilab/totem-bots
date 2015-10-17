@@ -1,3 +1,0 @@
-# mcabber
-lamson
-python-dateutil

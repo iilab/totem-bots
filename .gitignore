@@ -6,4 +6,5 @@ __pycache__/
 # app
 secret
 env
+otr/keys
 otr/game.py

@@ -19,33 +19,15 @@
 # (C) 2012- by Stefan Marsiske, <s@ctrlc.hu>
 
 from flask import Flask, request, render_template
-from flask_mail import Mail, Message
 from common import cfg
-from pygeoip import GeoIP
 from lepl.apps.rfc3696 import Email
 import os, random, itertools, hmac, hashlib
 
 basepath=os.path.dirname(os.path.abspath(__file__))
-geoipdb = GeoIP('%s/GeoIP.dat' % basepath)
-geoipcdb = GeoIP('%s/GeoIPCity.dat' % basepath)
-
-fp=open('%s/torexits.csv' % basepath,'r')
-torexits=[x.strip() for x in fp]
-fp.close()
 
 app = Flask(__name__)
 app.secret_key = cfg.get('app', 'secret_key')
-app.config.update(
-	DEBUG=True,
-	MAIL_FAIL_SILENTLY = False,
-	#EMAIL SETTINGS
-	MAIL_SERVER='localhost',
-	MAIL_PORT=8825,
-	#MAIL_USE_SSL=True,
-	#MAIL_USERNAME = 'you@google.com',
-	#MAIL_PASSWORD = 'GooglePasswordHere'
-	)
-mail = Mail(app)
+app.config.update( DEBUG=True,)
 
 with open('%s/secret' % basepath,'r') as f:
     secret=f.read().strip()
@@ -64,48 +46,6 @@ def index():
                            ,vendor=request.user_agent.platform
                            ,ip=request.args.get('ip',request.remote_addr)
                            )
-@app.route('/yay1')
-def yay1():
-    return render_template('yay1.html')
-
-@app.route('/signup', methods=['GET'])
-def signup():
-    t1 = Email()
-    recp=request.args.get('email')
-    if not t1(recp):
-        return render_template('weirdmail.html')
-    
-    found = False
-    try:
-        with open("%s/../data/seenmails" % basepath,'r') as f:
-            line = f.readline()
-            while line:
-                if line.strip() == recp.strip():
-                    found = True
-                    break
-                line = f.readline()
-    except IOError:
-        pass
-    if not found:
-        with open("%s/../data/seenmails" % basepath,'a') as f:
-            f.write("%s\n" % hmac.new(secret, recp, hashlib.sha256).hexdigest())
-    
-    msg = Message("save secure-a-lot",
-                  sender = "ono@game.onorobot.org",
-                  recipients = [recp])
-    if request.args.get('ip',request.remote_addr) in torexits:
-        src="Torland (Great!)"
-    else:
-        src=(geoipcdb.record_by_addr(request.args.get('ip',request.remote_addr)) or {}).get('city','')
-        if not src:
-            src=(geoipdb.country_name_by_addr(request.args.get('ip',request.remote_addr)) or '')
-    msg.body = render_template('welcome.txt',
-                               vendor=request.user_agent.platform,
-                               ip=request.args.get('ip',request.remote_addr),
-                               country=src)
-    mail.send(msg)
-    return render_template('welcome.html')
-
 def genpassphrase():
     # todo refactor me into common.py so site+lamson can use me
     # load words
