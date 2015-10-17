@@ -5,12 +5,12 @@
 # - Empty lines and lines beginning with a '#' are ignored.
 
 # Please provide your Jabber (XMPP) identifier:
-set jid = ono@jabber.ccc.de
+set jid = totem@jabber.ccc.de
 
 # If password is not given, it will be interactively asked for.
 # Note: if the password contains leading or trailing spaces, you must
 # enclose it with quotes: set password = " example password "
-set password = copypastingtokvmislame
+set password = totem
 
 # You can provide a server name if you want mcabber to connect
 # to a specific server.
@@ -195,7 +195,7 @@ set iq_last_disable_when_notavail = 1
 # If mcabber is built with modules support, you can specify the path
 # to the directory where your modules reside. Though, default compiled-in
 # value should be appropriate.
-#set modules_dir = /usr/lib/mcabber/
+#set modules_dir = /usr/local/lib/mcabber/
 set modules_dir = ./
 
 # Beep

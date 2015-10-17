@@ -1,0 +1,8 @@
+Key-Type: 1
+Key-Length: 4096
+Name-Real: Privacy Challenge master key
+Name-Email: ono@vps598.greenhost.nl
+Expire-Date: 10y
+%secring keys/keyring.sec
+%pubring keys/keyring.pub
+%commit
