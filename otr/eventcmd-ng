@@ -104,8 +104,9 @@ class Context(object):
 # routes
 ####################################
 
-#   ctx.say("Hey %s, good to see you!" % (ctx.jid.split('@')[0]))
-#   ctx.cmd("otr start %s" % (ctx.jid))
+def greet1(ctx):
+   ctx.say("Hey %s, good to see you! Let me start an encrypted OTR session." % (ctx.jid.split('@')[0]))
+   ctx.cmd("otr start %s" % (ctx.jid))
 
 # start
 @router(states=[''], hooks=['hook-subscription'] )
@@ -127,9 +128,8 @@ def plain(ctx):
 def otr(ctx):
     if not ctx.smpsecret:
         ctx.cmd("otrpolicy %s always" % ctx.jid)
-        ctx.say("Hey %s, good to see you! We should establish some kind of trust for our upcoming communication." % (ctx.jid.split('@')[0]))
+        ctx.say("Ok %s, our communications are now encrypted! We should establish some kind of trust for our upcoming communication." % (ctx.jid.split('@')[0]))
         ctx.say("Please go back to the totem course and start a shared secret verification with me!")
-#        ctx.say("to get a one time usable shared secret between us two, then come back.")
         ctx.state = 'smp'
     else:
         startsmp(ctx)
@@ -150,7 +150,7 @@ def _(ctx):
         startsmp(ctx)
 
 def startsmp(ctx):
-    ctx.say("Hi, good you're here. *finally*. I've been waiting for you. How are you doing?")
+    ctx.say("Hi, good you're here. We have an encrypted *and* trusted communication now!")
     ctx.say("Saving the world is a serious thing. It's good that we have set up a chat connection,"
         "but we need to make sure that we can connect securely. To do this we need to do two things."
         " We need to make sure that the chat is 'encrypted', which means that only the sender and the"
@@ -172,9 +172,8 @@ def _(ctx):
     else:
         smpstate=os.getenv('state')
         if smpstate == "Ok":
-            ctx.say("Fantastico now this communication is completed in a secure manner. "
-                "I will hang up now, and you can go back to the page for the "
-                "next challenge: http://game.onorobot.org/yay1")
+            ctx.say("Hi, good you're here. We have an encrypted *and* trusted communication now!"
+                    "You're ready to start the next exercise now.")
             ctx.state = 'smpdancer'
         elif smpstate == "Init":
             ctx.cmd("otr smpr %s %s" % (ctx.jid, ctx.smpsecret))
