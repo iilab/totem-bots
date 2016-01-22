@@ -82,34 +82,37 @@ class Context(object):
         else:
             raise AttributeError, name
 
-    def save_val(self, name, value):
-        p = '%s/data/%s' % (basepath, self.key)
-        if not os.path.exists(p):
-            os.mkdir(p)
-            os.chown(p, -1, WWW_DATA)
-            os.chmod(p, 0775)
-        with open('%s/data/%s/%s' % (basepath, self.key, name), 'w') as fd:
-            fd.write(value)
-
     def __setattr__(self, name, value):
-        if name in ('state', 'acc', 'smpsecret'):
+        if name not in self.__dict__ and name in ('state', 'acc', 'smpsecret'):
             self.__dict__[name]=value
-            self.save_val(name, val)
-        else:
+            p = '%s/data/%s' % (basepath, self.key)
+            if not os.path.exists(p):
+                os.mkdir(p)
+                os.chown(p, -1, WWW_DATA)
+                os.chmod(p, 0775)
+            with open('%s/data/%s/%s' % (basepath, self.key, name), 'w') as fd:
+                fd.write(value)
+        elif name in self.__dict__.keys():
+            self.__dict__[name]=value
+        else: 
             raise AttributeError, name
 
 ####################################
 # routes
 ####################################
 
+@router(pattern="resetme", states=states, hooks=['hook-post-message-in'])
+def _(ctx):
+    ctx.state = ''
+
 @router(states=[''], hooks=['hook-post-message-in'] )
 def _(ctx):
-   ctx.say("Ok. Let me start an encrypted OTR session." % (ctx.jid.split('@')[0]))
+   ctx.say("Ok. Let me start an encrypted OTR session.")
    ctx.cmd("otr start %s" % (ctx.jid))
 
 @router(states=[''], hooks=['hook-otr-start'] )
 def otr(ctx):
-    ctx.cmd("otrpolicy %s always" % ctx.jid)
+    ctx.cmd("otrpolicy%s always" % ctx.jid)
     ctx.say("Ok %s, our communications are now encrypted! We should establish some kind of trust for our upcoming communication." % (ctx.jid.split('@')[0]))
     ctx.say("Please complete the shared secret verification with me! You can find the shared secret on your totem course.")
     ctx.cmd("otr smpq %s %s" % (ctx.jid, ctx.smpsecret))
@@ -131,16 +134,10 @@ def _(ctx):
         ctx.say("That didn't work: %s" % smpstate)
         ctx.say("I'm initiating a new SMP request now.")
         ctx.cmd("otr smpq %s %s" % (ctx.jid, ctx.smpsecret))
-    else:
-        ctx.say("something went horribly wrong. dunno what to do.")
 
 @router(states=['smpdancer1'], hooks=defaulthooks)
 def _(ctx):
     ctx.say("You have successfully responded to an OTR/SMP verification.")
-
-@router(pattern="resetme", hooks=['hook-post-message-in'])
-def _(ctx):
-    ctx.state = ''
 
 ####################################
 
