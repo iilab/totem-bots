@@ -2,20 +2,19 @@
 
 import os, hmac, hashlib, time, sys
 from router import Router
-basepath='..'
-#from config import botjid
-#from game import ono_rand_id, append_table, get_val,first, add_state, get_state
 
 ####################################
 # config
 ####################################
+basepath='..'
+
 debug=1
 
 botjid='totem@jabber.ccc.de'
 WWW_DATA = 33
 
 hooks=['hook-otr-start', 'hook-post-message-in', 'hook-otr-smp']
-states=['', 'otr', 'smp', 'smpdancer', 'getpks01', 'pks01pwd', 'level01done', 'datasheet', 'level02done']
+states=['', 'otr', 'smp', 'smpdancer1']
 defaulthooks=['hook-post-message-in', 'hook-otr-start']
 
 ####################################
@@ -65,9 +64,7 @@ class Context(object):
                 print >>log, '------------------'
 
     def say(self, msg):
-        time.sleep(len(msg)/40)
-        with open('%s/otr/mcabber.fifo' % basepath, 'a') as fd:
-            fd.write("say_to -q %s %s\n" % (self.jid, msg))
+        self.cmd("say_to -q %s %s\n" % (self.jid, msg))
 
     def cmd(self, cmd):
         with open('%s/otr/mcabber.fifo' % basepath, 'a') as fd:
@@ -85,107 +82,65 @@ class Context(object):
         else:
             raise AttributeError, name
 
+    def save_val(self, name, value):
+        p = '%s/data/%s' % (basepath, self.key)
+        if not os.path.exists(p):
+            os.mkdir(p)
+            os.chown(p, -1, WWW_DATA)
+            os.chmod(p, 0775)
+        with open('%s/data/%s/%s' % (basepath, self.key, name), 'w') as fd:
+            fd.write(value)
+
     def __setattr__(self, name, value):
-        if name not in self.__dict__ and name in ('state', 'acc', 'smpsecret'):
+        if name in ('state', 'acc', 'smpsecret'):
             self.__dict__[name]=value
-            p = '%s/data/%s' % (basepath, self.key)
-            if not os.path.exists(p):
-                os.mkdir(p)
-                os.chown(p, -1, WWW_DATA)
-                os.chmod(p, 0775)
-            with open('%s/data/%s/%s' % (basepath, self.key, name), 'w') as fd:
-                fd.write(value)
-        elif name in self.__dict__.keys():
-            self.__dict__[name]=value
-        else: 
+            self.save_val(name, val)
+        else:
             raise AttributeError, name
 
 ####################################
 # routes
 ####################################
 
-def greet1(ctx):
-   ctx.say("Hey %s, good to see you! Let me start an encrypted OTR session." % (ctx.jid.split('@')[0]))
+@router(states=[''], hooks=['hook-post-message-in'] )
+def _(ctx):
+   ctx.say("Ok. Let me start an encrypted OTR session." % (ctx.jid.split('@')[0]))
    ctx.cmd("otr start %s" % (ctx.jid))
 
-# start
-@router(states=[''], hooks=['hook-subscription'] )
-def _(ctx):
-   if ctx.type=='subscribe':
-      ctx.cmd("event %s accept" % ctx.message)
-      greet1(ctx)
-
-@router(states=[''], hooks=['hook-post-message-in'] )
-def plain(ctx):
-    if not ctx.smpsecret:
-        greet1(ctx)
-    else:
-        ctx.say("I recognize you, before we establish trust, let me try to (re)start the encryption.")
-        ctx.cmd("otr start %s" % (ctx.jid))
-        ctx.state = 'otr'
-
-@router(states=['otr'], hooks=defaulthooks )
-def otr(ctx):
-    if not ctx.smpsecret:
-        ctx.cmd("otrpolicy %s always" % ctx.jid)
-        ctx.say("Ok %s, our communications are now encrypted! We should establish some kind of trust for our upcoming communication." % (ctx.jid.split('@')[0]))
-        ctx.say("Please go back to the totem course and start a shared secret verification with me!")
-        ctx.state = 'smp'
-    else:
-        startsmp(ctx)
-
-# start + otr -> smp
 @router(states=[''], hooks=['hook-otr-start'] )
-def _(ctx):
-    ctx.state = 'otr'
-    otr(ctx)
-
-@router(states=['smp'], hooks=defaulthooks)
-def _(ctx):
-    if not ctx.smpsecret:
-        ctx.say("Having trouble? Maybe someone from the tactical technology collective can help?")
-        ctx.say("To continue go to: https://game.onorobot.org/buddy")
-        ctx.say("to get a one time usable shared secret between us two, then come back.")
-    else:
-        startsmp(ctx)
-
-def startsmp(ctx):
-    ctx.say("Hi, good you're here. We have an encrypted *and* trusted communication now!")
-    ctx.say("Saving the world is a serious thing. It's good that we have set up a chat connection,"
-        "but we need to make sure that we can connect securely. To do this we need to do two things."
-        " We need to make sure that the chat is 'encrypted', which means that only the sender and the"
-        " receiver can read the message. We also need to verify each others identity to make sure"
-        " that we both really are who we say we are. On other words, you need to check that I'm really"
-        " Ono. Everything clear thus far?")
-    ctx.say("You should answer the question with the secret from the webpage "
-            "earlier. (https://game.onorobot.org/buddy)")
+def otr(ctx):
+    ctx.cmd("otrpolicy %s always" % ctx.jid)
+    ctx.say("Ok %s, our communications are now encrypted! We should establish some kind of trust for our upcoming communication." % (ctx.jid.split('@')[0]))
+    ctx.say("Please complete the shared secret verification with me! You can find the shared secret on your totem course.")
     ctx.cmd("otr smpq %s %s" % (ctx.jid, ctx.smpsecret))
+    ctx.state = 'smp'
 
 @router(states=['otr', 'smp'], hooks=['hook-otr-smp'] )
 def _(ctx):
-    if not ctx.smpsecret:
-        ctx.say("We have no shared secret, wanna do a telepathic diffie-hellman perhaps?")
-        ctx.say("Did you misstype your jabber address perhaps?")
-        ctx.say("You might want go to: https://game.onorobot.org/buddy")
-        ctx.say("... to get yourself a secret, that we can use for establishing our trust.")
-        if ctx.state != 'smp': ctx.state = 'smp'
+    smpstate=os.getenv('state')
+    if smpstate == "Ok":
+        ctx.say("Hi, good you're here. We have an encrypted *and* trusted communication now!"
+                "You're ready to start the next exercise now.")
+        ctx.state = 'smpdancer1'
+    elif smpstate == "Init":
+        ctx.say("Hey, you should respond to a SMP request, not initiate one. I'm initiating a new one now.")
+        ctx.cmd("otr smpq %s %s" % (ctx.jid, ctx.smpsecret))
+        # needed for the response (another to-b-implemented totem test)
+        #ctx.cmd("otr smpr %s %s" % (ctx.jid, ctx.smpsecret))
+    elif smpstate != "Response":
+        ctx.say("That didn't work: %s" % smpstate)
+        ctx.say("I'm initiating a new SMP request now.")
+        ctx.cmd("otr smpq %s %s" % (ctx.jid, ctx.smpsecret))
     else:
-        smpstate=os.getenv('state')
-        if smpstate == "Ok":
-            ctx.say("Hi, good you're here. We have an encrypted *and* trusted communication now!"
-                    "You're ready to start the next exercise now.")
-            ctx.state = 'smpdancer'
-        elif smpstate == "Init":
-            ctx.cmd("otr smpr %s %s" % (ctx.jid, ctx.smpsecret))
-        elif smpstate != "Response":
-            ctx.say("That didn't work: %s" % smpstate)
+        ctx.say("something went horribly wrong. dunno what to do.")
 
-@router(states=['smpdancer'], hooks=defaulthooks)
+@router(states=['smpdancer1'], hooks=defaulthooks)
 def _(ctx):
-    ctx.say("Great, now that we can chat securely, I was hoping you could help me retrieve a secret file. " \
-        "I dropped the file in a dropbox a while ago, but now the site is being blocked so I cannot access" \
-        " it. Can you have a look? http://game.onorobot.org/robotdropbox")
-    ctx.state = 'getpks01'
+    ctx.say("You have successfully responded to an OTR/SMP verification.")
+
+@router(pattern="resetme", hooks=['hook-post-message-in'])
+def _(ctx):
+    ctx.state = ''
 
 ####################################
 
